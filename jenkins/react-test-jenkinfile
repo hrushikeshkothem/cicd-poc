@@ -47,7 +47,7 @@ spec:
     GITOPS_BRANCH           = "main"
     DEPLOYMENT_MANIFEST_PATH= "argocd/clusters/minikube/apps/nginx-test/test-app/deployment.yaml"
     IMAGE_REPO_PREFIX       = "react-test-app"
-    GITOPS_CREDENTIALS_ID   = "gitops"
+    GITOPS_CREDENTIALS_ID   = "test-app-gitops"
   }
 
   stages {
@@ -101,8 +101,8 @@ spec:
       steps {
         dir('hello-react') {
             script {
-                TAG       = sh(script: "head /dev/urandom | tr -dc a-z0-9 | head -c8", returnStdout: true).trim()
-                IMAGE_TAG = "${DOCKER_IMAGE_NAME}:${TAG}"
+               def TAG       = sh(script: "head /dev/urandom | tr -dc a-z0-9 | head -c8", returnStdout: true).trim()
+               def IMAGE_TAG = "${DOCKER_IMAGE_NAME}:${TAG}"
                 echo "Building Docker image with tag: ${IMAGE_TAG}"
             }
             container('docker') {
@@ -113,47 +113,35 @@ spec:
     }
 
     stage('Update GitOps Repo with new image tag') {
-        steps {
-            script {
-            sh "rm -rf gitops-repo"
-            withCredentials([sshUserPrivateKey(
-                credentialsId: GITOPS_CREDENTIALS_ID,
-                keyFileVariable: 'SSH_KEY',
-                passphraseVariable: '',
-                usernameVariable: 'SSH_USER'
-            )]) {
-                sh '''
-                eval "$(ssh-agent -s)"
-                ssh-add $SSH_KEY
-                git clone -b $GITOPS_BRANCH $GITOPS_REPO gitops-repo
-                '''
-            }
-            def manifestFile = "${WORKSPACE}/gitops-repo/${DEPLOYMENT_MANIFEST_PATH}"
-            echo "Updating image tag in ${manifestFile} to ${IMAGE_TAG}"
-            sh """
-                sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${manifestFile}
-            """
-            withCredentials([sshUserPrivateKey(
-                credentialsId: GITOPS_CREDENTIALS_ID,
-                keyFileVariable: 'SSH_KEY',
-                passphraseVariable: '',
-                usernameVariable: 'SSH_USER'
-            )]) {
-                dir('gitops-repo') {
-                sh '''
-                    eval "$(ssh-agent -s)"
-                    ssh-add $SSH_KEY
-                    git config user.email "jenkins@example.com"
-                    git config user.name  "Jenkins CI"
-                    git add ${DEPLOYMENT_MANIFEST_PATH}
-                    git commit -m "ci: update image tag to ${TAG} [skip ci]"
-                    git push origin ${GITOPS_BRANCH}
-                '''
-                }
-            }
-            }
-        }
+  steps {
+    script {
+      // Clean out any previous clone
+      sh 'rm -rf gitops-repo'
+
+      // Clone (and set up SSH) via the Git plugin
+      dir('gitops-repo') {
+        git branch:       GITOPS_BRANCH,
+            credentialsId: GITOPS_CREDENTIALS_ID,
+            url:           GITOPS_REPO
+
+        // Patch the manifest
+        sh """
+          sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${DEPLOYMENT_MANIFEST_PATH}
+        """
+
+        // Commit & push—Git plugin’s SSH setup covers both clone and push
+        sh '''
+          git config user.email "jenkins@example.com"
+          git config user.name  "Jenkins CI"
+          git add ${DEPLOYMENT_MANIFEST_PATH}
+          git commit -m "ci: update image tag to ${TAG} [skip ci]"
+          git push origin ${GITOPS_BRANCH}
+        '''
+      }
     }
+  }
+}
+
   }
 
   post {
