@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jenkins-stack
+  namespace: argocd
+  labels:
+    namespace: jenkins
+spec:
+  project: cicd-poc
+  source:
+    repoURL: git@github.com:hrushikeshkothem/cicd-poc.git
+    targetRevision: main
+    path: argocd/clusters/minikube/apps/jenkins/jenkins-stack/chart
+    helm:
+      valueFiles:
+        - ../values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jenkins
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      - Force=true
+    automated:
+      prune: true
+      selfHeal: true
