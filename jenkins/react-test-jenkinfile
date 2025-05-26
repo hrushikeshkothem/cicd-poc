@@ -60,7 +60,7 @@ spec:
     stage('Install Dependencies') {
       steps {
         container('node') {
-          sh 'npm ci'
+          sh 'npm install'
         }
       }
     }
