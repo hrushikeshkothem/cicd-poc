@@ -120,9 +120,8 @@ spec:
 
       // Clone (and set up SSH) via the Git plugin
       dir('gitops-repo') {
-        git branch:       GITOPS_BRANCH,
-            credentialsId: GITOPS_CREDENTIALS_ID,
-            url:           GITOPS_REPO
+       
+       checkout scm
 
         // Patch the manifest
         sh """
