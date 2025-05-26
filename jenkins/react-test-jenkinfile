@@ -101,8 +101,8 @@ spec:
       steps {
         dir('hello-react') {
             script {
-               def TAG       = sh(script: "head /dev/urandom | tr -dc a-z0-9 | head -c8", returnStdout: true).trim()
-               def IMAGE_TAG = "${DOCKER_IMAGE_NAME}:${TAG}"
+               env.TAG       = sh(script: "head /dev/urandom | tr -dc a-z0-9 | head -c8", returnStdout: true).trim()
+               env.IMAGE_TAG = "${DOCKER_IMAGE_NAME}:${TAG}"
                 echo "Building Docker image with tag: ${IMAGE_TAG}"
             }
             container('docker') {
