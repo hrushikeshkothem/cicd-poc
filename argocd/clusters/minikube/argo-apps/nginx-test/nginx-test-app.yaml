@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: git@github.com:hrushikeshkothem/cicd-poc.git
     targetRevision: main
-    path: argocd/clusters/minikube/apps/niginx-test/test-app
+    path: argocd/clusters/minikube/apps/nginx-test/test-app
   destination:
     server: https://kubernetes.default.svc
     namespace: nginx-test
