@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-test-app
+  namespace: argocd
+  labels:
+    namespace: nginx-test
+spec:
+  project: cicd-poc
+  source:
+    repoURL: git@github.com:hrushikeshkothem/cicd-poc.git
+    targetRevision: main
+    path: argocd/clusters/minikube/apps/niginx-test/test-app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nginx-test
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

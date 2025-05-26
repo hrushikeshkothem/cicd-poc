@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cluster-root
+  namespace: argocd
+spec:
+  project: cicd-poc
+  source:
+    repoURL: git@github.com:hrushikeshkothem/cicd-poc.git
+    targetRevision: main
+    path: argocd/clusters/minikube/argo-apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
