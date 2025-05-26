@@ -113,32 +113,46 @@ spec:
     }
 
     stage('Update GitOps Repo with new image tag') {
-      steps {
-        dir('hello-react') {
-        script {
-          sh "rm -rf gitops-repo"
-          sshagent([GITOPS_CREDENTIALS_ID]) {
-            sh "git clone -b ${GITOPS_BRANCH} ${GITOPS_REPO} gitops-repo"
-          }
-          def manifestFile = "${WORKSPACE}/gitops-repo/${DEPLOYMENT_MANIFEST_PATH}"
-          echo "Updating image tag in ${manifestFile} to ${IMAGE_TAG}"
-          sh """
-            sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${manifestFile}
-          """
-          sshagent([GITOPS_CREDENTIALS_ID]) {
-            dir('gitops-repo') {
-              sh """
-                git config user.email "jenkins@hrushispace.com"
-                git config user.name  "Jenkins CI"
-                git add ${DEPLOYMENT_MANIFEST_PATH}
-                git commit -m "ci: update image tag to ${TAG} [skip ci]"
-                git push origin ${GITOPS_BRANCH}
-              """
+        steps {
+            script {
+            sh "rm -rf gitops-repo"
+            withCredentials([sshUserPrivateKey(
+                credentialsId: GITOPS_CREDENTIALS_ID,
+                keyFileVariable: 'SSH_KEY',
+                passphraseVariable: '',
+                usernameVariable: 'SSH_USER'
+            )]) {
+                sh '''
+                eval "$(ssh-agent -s)"
+                ssh-add $SSH_KEY
+                git clone -b $GITOPS_BRANCH $GITOPS_REPO gitops-repo
+                '''
             }
-          }
+            def manifestFile = "${WORKSPACE}/gitops-repo/${DEPLOYMENT_MANIFEST_PATH}"
+            echo "Updating image tag in ${manifestFile} to ${IMAGE_TAG}"
+            sh """
+                sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${manifestFile}
+            """
+            withCredentials([sshUserPrivateKey(
+                credentialsId: GITOPS_CREDENTIALS_ID,
+                keyFileVariable: 'SSH_KEY',
+                passphraseVariable: '',
+                usernameVariable: 'SSH_USER'
+            )]) {
+                dir('gitops-repo') {
+                sh '''
+                    eval "$(ssh-agent -s)"
+                    ssh-add $SSH_KEY
+                    git config user.email "jenkins@example.com"
+                    git config user.name  "Jenkins CI"
+                    git add ${DEPLOYMENT_MANIFEST_PATH}
+                    git commit -m "ci: update image tag to ${TAG} [skip ci]"
+                    git push origin ${GITOPS_BRANCH}
+                '''
+                }
+            }
+            }
         }
-        }
-      }
     }
   }
 
