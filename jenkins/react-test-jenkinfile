@@ -47,7 +47,7 @@ spec:
     GITOPS_BRANCH           = "main"
     DEPLOYMENT_MANIFEST_PATH= "argocd/clusters/minikube/apps/nginx-test/test-app/deployment.yaml"
     IMAGE_REPO_PREFIX       = "react-test-app"
-    GITOPS_CREDENTIALS_ID   = "gitops-ssh-creds"
+    GITOPS_CREDENTIALS_ID   = "gitops"
   }
 
   stages {
