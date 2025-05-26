@@ -1,37 +1,21 @@
 pipeline {
-    agent none
-
-    environment {
-        DOCKER_IMAGE_NAME = "react-test-app"
-        GITOPS_REPO = "git@github.com:hrushikeshkothem/cicd-poc.git"
-        GITOPS_BRANCH = "main"
-        DEPLOYMENT_MANIFEST_PATH = "argocd/clusters/minikube/apps/nginx-test/test-app/deployment.yaml"
-        IMAGE_REPO_PREFIX = "react-test-app"
-        GITOPS_CREDENTIALS_ID = "gitops-ssh-creds"
-    }
-
-    stages {
-        stage('Checkout App') {
-            agent {
-                kubernetes {
-                    label 'nodejs-docker'
-                    defaultContainer 'node'
-                    yaml """
+  agent {
+    kubernetes {
+      label 'nodejs-docker'
+      defaultContainer 'node'
+      yaml """
 apiVersion: v1
 kind: Pod
 spec:
   containers:
   - name: node
     image: node:20-alpine
-    command:
-      - cat
+    command: ['cat']
     tty: true
   - name: docker
     image: docker:20.10.7
-    command:
-      - sleep
-    args:
-      - infinity
+    command: ['sleep']
+    args: ['infinity']
     volumeMounts:
       - name: dockersock
         mountPath: /var/run/docker.sock
@@ -40,107 +24,111 @@ spec:
       hostPath:
         path: /var/run/docker.sock
 """
-                }
-            }
-            steps {
-                checkout scm
-            }
-        }
+    }
+  }
 
-        stage('Install Dependencies') {
-            agent { label 'nodejs-docker' }
-            steps {
-                container('node') {
-                    sh 'npm ci'
-                }
-            }
-        }
+  environment {
+    DOCKER_IMAGE_NAME      = "react-test-app"
+    GITOPS_REPO            = "git@github.com:hrushikeshkothem/cicd-poc.git"
+    GITOPS_BRANCH          = "main"
+    DEPLOYMENT_MANIFEST_PATH = "argocd/clusters/minikube/apps/nginx-test/test-app/deployment.yaml"
+    IMAGE_REPO_PREFIX      = "react-test-app"
+    GITOPS_CREDENTIALS_ID  = "gitops-ssh-creds"
+  }
 
-        stage('Lint') {
-            agent { label 'nodejs-docker' }
-            steps {
-                container('node') {
-                    sh 'npm run lint'
-                }
-            }
-        }
-
-        stage('Test') {
-            agent { label 'nodejs-docker' }
-            steps {
-                container('node') {
-                    sh 'npm run test -- --run --ci'
-                }
-            }
-        }
-
-        stage('Build React App') {
-            agent { label 'nodejs-docker' }
-            steps {
-                container('node') {
-                    sh 'npm run build'
-                }
-            }
-        }
-
-        stage('Build Docker Image') {
-            agent { label 'nodejs-docker' }
-            steps {
-                container('docker') {
-                    script {
-                        TAG = sh(script: "head /dev/urandom | tr -dc a-z0-9 | head -c8", returnStdout: true).trim()
-                        IMAGE_TAG = "${DOCKER_IMAGE_NAME}:${TAG}"
-                        echo "Building Docker image with tag: ${IMAGE_TAG}"
-                        sh "docker build -t ${IMAGE_TAG} ."
-                    }
-                }
-            }
-        }
-
-        stage('Load Docker Image into Minikube') {
-            agent { label 'nodejs-docker' }
-            steps {
-                script {
-                    echo "Loading image into minikube..."
-                    sh "minikube image load ${IMAGE_TAG}"
-                }
-            }
-        }
-
-        stage('Update GitOps Repo with new image tag') {
-            agent { label 'nodejs-docker' }
-            steps {
-                script {
-                    sh "rm -rf gitops-repo"
-                    sshagent([GITOPS_CREDENTIALS_ID]) {
-                        sh "git clone -b ${GITOPS_BRANCH} ${GITOPS_REPO} gitops-repo"
-                    }
-                    def manifestFile = "${WORKSPACE}/gitops-repo/${DEPLOYMENT_MANIFEST_PATH}"
-                    echo "Updating image tag in ${manifestFile} to ${IMAGE_TAG}"
-                    sh """
-                    sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${manifestFile}
-                    """
-                    sshagent([GITOPS_CREDENTIALS_ID]) {
-                        sh """
-                        cd gitops-repo
-                        git config user.email "jenkins@example.com"
-                        git config user.name "Jenkins CI"
-                        git add ${DEPLOYMENT_MANIFEST_PATH}
-                        git commit -m "ci: update image tag to ${TAG} [skip ci]"
-                        git push origin ${GITOPS_BRANCH}
-                        """
-                    }
-                }
-            }
-        }
+  stages {
+    stage('Checkout App') {
+      steps {
+        checkout scm
+      }
     }
 
-    post {
-        success {
-            echo "Build and deploy pipeline completed successfully with image tag: ${IMAGE_TAG}"
+    stage('Install Dependencies') {
+      steps {
+        container('node') {
+          sh 'npm ci'
         }
-        failure {
-            echo "Pipeline failed."
-        }
+      }
     }
+
+    stage('Lint') {
+      steps {
+        container('node') {
+          sh 'npm run lint'
+        }
+      }
+    }
+
+    stage('Test') {
+      steps {
+        container('node') {
+          sh 'npm run test -- --run --ci'
+        }
+      }
+    }
+
+    stage('Build React App') {
+      steps {
+        container('node') {
+          sh 'npm run build'
+        }
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        script {
+          TAG       = sh(script: "head /dev/urandom | tr -dc a-z0-9 | head -c8", returnStdout: true).trim()
+          IMAGE_TAG = "${DOCKER_IMAGE_NAME}:${TAG}"
+          echo "Building Docker image with tag: ${IMAGE_TAG}"
+        }
+        container('docker') {
+          sh "docker build -t ${IMAGE_TAG} ."
+        }
+      }
+    }
+
+    stage('Load Docker Image into Minikube') {
+      steps {
+        container('docker') {
+          sh "minikube image load ${IMAGE_TAG}"
+        }
+      }
+    }
+
+    stage('Update GitOps Repo with new image tag') {
+      steps {
+        script {
+          sh "rm -rf gitops-repo"
+          sshagent([GITOPS_CREDENTIALS_ID]) {
+            sh "git clone -b ${GITOPS_BRANCH} ${GITOPS_REPO} gitops-repo"
+          }
+          def manifestFile = "${WORKSPACE}/gitops-repo/${DEPLOYMENT_MANIFEST_PATH}"
+          sh """
+            sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${manifestFile}
+          """
+          sshagent([GITOPS_CREDENTIALS_ID]) {
+            dir('gitops-repo') {
+              sh """
+                git config user.email "jenkins@example.com"
+                git config user.name  "Jenkins CI"
+                git add ${DEPLOYMENT_MANIFEST_PATH}
+                git commit -m "ci: update image tag to ${TAG} [skip ci]"
+                git push origin ${GITOPS_BRANCH}
+              """
+            }
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Build and deploy pipeline completed successfully with image tag: ${IMAGE_TAG}"
+    }
+    failure {
+      echo "Pipeline failed."
+    }
+  }
 }
