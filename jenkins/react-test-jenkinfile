@@ -59,59 +59,72 @@ spec:
 
     stage('Install Dependencies') {
       steps {
-        container('node') {
-          sh 'npm install'
+        dir('hello-react') {
+            container('node') {
+                sh 'npm install'
+            }
         }
       }
     }
 
     stage('Lint') {
       steps {
-        container('node') {
-          sh 'npm run lint'
+        dir('hello-react') {
+            container('node') {
+                sh 'npm run lint'
+            }
         }
       }
     }
 
     stage('Test') {
       steps {
-        container('node') {
-          sh 'npm run test -- --run --ci'
+        dir('hello-react') {
+            container('node') {
+                sh 'npm run test -- --run --ci'
+            }
         }
       }
     }
 
     stage('Build React App') {
       steps {
-        container('node') {
-          sh 'npm run build'
+        dir('hello-react') {
+            container('node') {
+                sh 'npm run build'
+            }
         }
       }
     }
 
     stage('Build Docker Image') {
       steps {
-        script {
-          TAG       = sh(script: "head /dev/urandom | tr -dc a-z0-9 | head -c8", returnStdout: true).trim()
-          IMAGE_TAG = "${DOCKER_IMAGE_NAME}:${TAG}"
-          echo "Building Docker image with tag: ${IMAGE_TAG}"
-        }
-        container('docker') {
-          sh "docker build -t ${IMAGE_TAG} ."
+        dir('hello-react') {
+            script {
+                TAG       = sh(script: "head /dev/urandom | tr -dc a-z0-9 | head -c8", returnStdout: true).trim()
+                IMAGE_TAG = "${DOCKER_IMAGE_NAME}:${TAG}"
+                echo "Building Docker image with tag: ${IMAGE_TAG}"
+            }
+            container('docker') {
+                sh "docker build -t ${IMAGE_TAG} ."
+            }
         }
       }
     }
 
     stage('Load Docker Image into Minikube') {
       steps {
-        container('docker') {
-          sh "minikube image load ${IMAGE_TAG}"
+        dir('hello-react') {
+            container('docker') {
+                sh "minikube image load ${IMAGE_TAG}"
+            }
         }
       }
     }
 
     stage('Update GitOps Repo with new image tag') {
       steps {
+        dir('hello-react') {
         script {
           sh "rm -rf gitops-repo"
           sshagent([GITOPS_CREDENTIALS_ID]) {
@@ -133,6 +146,7 @@ spec:
               """
             }
           }
+        }
         }
       }
     }
