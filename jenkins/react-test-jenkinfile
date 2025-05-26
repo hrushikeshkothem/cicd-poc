@@ -81,7 +81,7 @@ spec:
       steps {
         dir('hello-react') {
             container('node') {
-                sh 'npm run test -- --run --ci'
+                sh 'npm run test'
             }
         }
       }
