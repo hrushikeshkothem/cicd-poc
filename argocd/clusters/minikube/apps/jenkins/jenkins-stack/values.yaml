@@ -1,5 +1,5 @@
 controller:
     admin:
-      username: "admin"
-      password: "123456Seven"
+      username: "${JENKINS_ADMIN_USER}"
+      password: "${JENKINS_ADMIN_PASSWORD}"
     serviceType: NodePort
