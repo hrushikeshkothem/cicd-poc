@@ -1,38 +1,29 @@
 pipeline {
   agent {
     kubernetes {
-      // make sure this matches the 'Name' of your Kubernetes cloud in Jenkins Config
       cloud 'kubernetes' 
-
-      // this label ties your pipeline to this exact pod template
       label 'nodejs-docker'
-
-      // defaultContainer is where 'sh' will run unless you wrap in container('docker')
       defaultContainer 'node'
-
-      // the actual pod spec, with both nodejs and docker side-by-side
       yaml """
 apiVersion: v1
 kind: Pod
 spec:
-  serviceAccountName: jenkins-stack            # your SA must have rights to create pods
+  serviceAccountName: jenkins-stack
   containers:
   - name: node
     image: node:20-alpine
     command: ['cat']
     tty: true
-
   - name: docker
     image: docker:20.10.7
     command: ['sleep']
     args: ['infinity']
     tty: true
     securityContext:
-      privileged: true                   # needed for mounting the docker socket
+      privileged: true
     volumeMounts:
     - name: dockersock
       mountPath: /var/run/docker.sock
-
   volumes:
   - name: dockersock
     hostPath:
@@ -47,7 +38,7 @@ spec:
     GITOPS_BRANCH           = "main"
     DEPLOYMENT_MANIFEST_PATH= "argocd/clusters/minikube/apps/nginx-test/test-app/deployment.yaml"
     IMAGE_REPO_PREFIX       = "react-test-app"
-    GITOPS_CREDENTIALS_ID   = "jenkins"
+    GITOPS_CREDENTIALS_ID   = "test-app-gitops"
   }
 
   stages {
@@ -112,30 +103,22 @@ spec:
       }
     }
 
-    stage('Update GitOps Repo with new image tag') {
+stage('Update GitOps Repo with new image tag') {
   steps {
     script {
-      // Clean out any previous clone
       sh 'rm -rf gitops-repo'
-
-      // Clone (and set up SSH) via the Git plugin
       dir('gitops-repo') {
-       
-       checkout scm
-
-        // Patch the manifest
+        checkout scm
         sh """
           sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${DEPLOYMENT_MANIFEST_PATH}
         """
-
-        // Commit & push—Git plugin’s SSH setup covers both clone and push
-        sh '''
-          git config user.email "jenkins@example.com"
-          git config user.name  "Jenkins CI"
-          git add ${DEPLOYMENT_MANIFEST_PATH}
-          git commit -m "ci: update image tag to ${TAG} [skip ci]"
-          git push origin ${GITOPS_BRANCH}
-        '''
+        sshagent (credentials: ['test-app-gitops']) {
+            sh("git config user.email 'jenkins@hrushispace.com'")
+            sh("git config user.name  'Jenkins CI'")
+            sh("git add ${DEPLOYMENT_MANIFEST_PATH}")
+            sh("git commit -m 'ci: update image tag to ${TAG} [skip ci]'")
+            sh("git push origin ${GITOPS_BRANCH}")
+        }
       }
     }
   }
