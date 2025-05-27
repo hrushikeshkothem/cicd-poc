@@ -1,7 +1,7 @@
 function App() {
   return (
     <div className="body">
-      <p>Hello Hrushikesh Kothem</p>
+      <p>Hello Hrushikesh</p>
     </div>
   )
 }
