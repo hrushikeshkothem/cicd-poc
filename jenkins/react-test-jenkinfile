@@ -14,11 +14,6 @@ spec:
     image: node:20-alpine
     command: ['cat']
     tty: true
-  - name: gitops
-    image: bitnami/git:latest
-    command:
-      - cat
-    tty: true
   - name: docker
     image: docker:20.10.7
     command: ['sleep']
@@ -108,28 +103,27 @@ spec:
       }
     }
 
-stage('Update GitOps Repo with new image tag') {
-  steps {
-    script {
-      sh 'rm -rf gitops-repo'
-      dir('gitops-repo') {
-        checkout scm
-        container('gitops') {
+    stage('Update GitOps Repo with new image tag') {
+      steps {
+        sh 'rm -rf gitops-repo'
+        dir('gitops-repo') {
+          checkout scm
           sh """
             sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${DEPLOYMENT_MANIFEST_PATH}
           """
           sshagent (credentials: ['gitops']) {
-              sh("git config user.email 'jenkins@hrushispace.com'")
-              sh("git config user.name  'Jenkins CI'")
-              sh("git add ${DEPLOYMENT_MANIFEST_PATH}")
-              sh("git commit -m 'ci: update image tag to ${TAG} [skip ci]'")
-              sh("git push origin ${GITOPS_BRANCH}")
+            sh """
+              git config user.email 'jenkins@hrushispace.com'
+              git config user.name  'Jenkins CI'
+              git add ${DEPLOYMENT_MANIFEST_PATH}
+              git commit -m 'ci: update image tag to ${TAG} [skip ci]' || echo 'No changes to commit'
+              git push origin ${GITOPS_BRANCH}
+            """
           }
         }
       }
     }
-  }
-}
+
 
   }
 
