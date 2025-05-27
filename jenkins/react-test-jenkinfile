@@ -116,6 +116,7 @@ spec:
               sh """
                 git config user.email 'jenkins@hrushispace.com'
                 git config user.name  'Jenkins CI'
+                git checkout -B ${GITOPS_BRANCH}
                 git add ${DEPLOYMENT_MANIFEST_PATH}
                 git commit -m 'ci: update image tag to ${TAG} [skip ci]' || echo 'No changes to commit'
                 git push origin ${GITOPS_BRANCH}
