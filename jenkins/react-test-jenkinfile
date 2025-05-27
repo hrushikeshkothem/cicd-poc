@@ -105,20 +105,22 @@ spec:
 
     stage('Update GitOps Repo with new image tag') {
       steps {
-        sh 'rm -rf gitops-repo'
-        dir('gitops-repo') {
-          checkout scm
-          sh """
-            sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${DEPLOYMENT_MANIFEST_PATH}
-          """
-          sshagent (credentials: ['gitops']) {
+        container('jnlp') {
+          sh 'rm -rf gitops-repo'
+          dir('gitops-repo') {
+            checkout scm
             sh """
-              git config user.email 'jenkins@hrushispace.com'
-              git config user.name  'Jenkins CI'
-              git add ${DEPLOYMENT_MANIFEST_PATH}
-              git commit -m 'ci: update image tag to ${TAG} [skip ci]' || echo 'No changes to commit'
-              git push origin ${GITOPS_BRANCH}
+              sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${DEPLOYMENT_MANIFEST_PATH}
             """
+            sshagent (credentials: ['gitops']) {
+              sh """
+                git config user.email 'jenkins@hrushispace.com'
+                git config user.name  'Jenkins CI'
+                git add ${DEPLOYMENT_MANIFEST_PATH}
+                git commit -m 'ci: update image tag to ${TAG} [skip ci]' || echo 'No changes to commit'
+                git push origin ${GITOPS_BRANCH}
+              """
+            }
           }
         }
       }
