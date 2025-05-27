@@ -112,7 +112,7 @@ stage('Update GitOps Repo with new image tag') {
         sh """
           sed -i.bak 's|image: ${IMAGE_REPO_PREFIX}:.*|image: ${IMAGE_TAG}|' ${DEPLOYMENT_MANIFEST_PATH}
         """
-        sshagent (credentials: ['test-app-gitops']) {
+        sshagent (credentials: ['gitops']) {
             sh("git config user.email 'jenkins@hrushispace.com'")
             sh("git config user.name  'Jenkins CI'")
             sh("git add ${DEPLOYMENT_MANIFEST_PATH}")
