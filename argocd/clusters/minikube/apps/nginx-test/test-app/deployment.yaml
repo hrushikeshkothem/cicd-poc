@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
         - name: test-app
-          image: react-test-app:sgaz7ocn
+          image: react-test-app:u8o9jjoi
           ports:
             - containerPort: 80
